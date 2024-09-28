@@ -92,7 +92,8 @@ def inicio(Automata, cadena):
         #si es una cadena se guarda el caracter actual en la cadena y el tipo de cadena
 
         if(isinstance(resultado, str)):
-            cadena_evaluada += c
+            if(Automata.estado_actual in Automata.estados_aceptacion):
+                cadena_evaluada += c
             tipoCadenaActual = resultado
 
         #si es una cadena se guarda en el tipo de cadena
