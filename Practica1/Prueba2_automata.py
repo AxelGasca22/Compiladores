@@ -80,7 +80,7 @@ class AutomataNumeros:
             return False
 
 # Ejemplo de uso
-automata = AutomataNumeros('automata2.txt')
+automata = AutomataNumeros('./Practica1/automata2.txt')
 
 # Cadenas de ejemplo para probar
 #cadenas = ["123", "-123", "+123", "12.34", "-0.45", "+45.67", "abc", "12.a34"]
