@@ -39,17 +39,13 @@ class Automata:
 tokens = {}
 
 # Función para agregar una cadena evaluada a la estructura de tokens
-def agregar_token(estado_actual, tipoCadenaAnterior, cadena_evaluada):
-    # Si el estado actual no está en el diccionario, lo creamos
-    if estado_actual not in tokens:
-        tokens[estado_actual] = {}
-    
+def agregar_token(tipoCadenaAnterior, cadena_evaluada):    
     # Si el tipoCadenaAnterior no está en el diccionario del estado actual, lo creamos
-    if tipoCadenaAnterior not in tokens[estado_actual]:
-        tokens[estado_actual][tipoCadenaAnterior] = []
+    if tipoCadenaAnterior not in tokens:
+        tokens[tipoCadenaAnterior] = []
     
     # Añadimos la cadena evaluada a la lista correspondiente
-    tokens[estado_actual][tipoCadenaAnterior].append(cadena_evaluada)
+    tokens[tipoCadenaAnterior].append(cadena_evaluada)
 
 def transicion(Automata, caracter):
     estado_str = str(Automata.estado_actual)  # Convierte el estado actual a una cadena
@@ -75,37 +71,50 @@ def transicion(Automata, caracter):
             entrada = 'identificadores'
         return entrada
     else:
-        return 2
+        estado_str = str(Automata.estado_inicial)
+        if estado_str in Automata.transiciones and entrada in Automata.transiciones[estado_str]:  # Verifica si existe una transición válida
+            nuevo_estado = Automata.transiciones[estado_str][entrada]
+            Automata.estado_actual = nuevo_estado
+            if(entrada == 'letras'):
+                entrada = 'identificadores'
+            return [2, entrada]
 
 def inicio(Automata, cadena):
     Automata.estado_actual = Automata.estado_inicial  # Reiniciamos al estado inicial
     cadena_evaluada = ''
     tipoCadenaAnterior = ''
+    tipoCadenaActual = ''
 
     #evaluar cada caracter
     for c in cadena:
         #guardar lo obtenido
         resultado = transicion(Automata,c)
         #si es una cadena se guarda el caracter actual en la cadena y el tipo de cadena
+
         if(isinstance(resultado, str)):
             cadena_evaluada += c
-            tipoCadenaAnterior = resultado
+            tipoCadenaActual = resultado
+
         #si es una cadena se guarda en el tipo de cadena
-        elif(resultado == 2):
+        elif(isinstance(resultado, list)):
             if(Automata.estado_actual in Automata.estados_aceptacion):
-                agregar_token(int(Automata.estado_actual), tipoCadenaAnterior, cadena_evaluada)
-            Automata.estado_actual = Automata.estado_inicial
-            cadena_evaluada = ''
-            tipoCadenaAnterior = ''
+                agregar_token(tipoCadenaAnterior, cadena_evaluada)
+            cadena_evaluada = c
+            tipoCadenaActual = resultado[1]
+
+        
         #si es cadena vacia el resultado que priviene
         elif(resultado == 3):
             if(cadena_evaluada != ''):
                 if(Automata.estado_actual in Automata.estados_aceptacion):
-                    agregar_token(int(Automata.estado_actual), tipoCadenaAnterior, cadena_evaluada)
+                    agregar_token(tipoCadenaActual, cadena_evaluada)
             Automata.estado_actual = Automata.estado_inicial
-            tipoCadenaAnterior = ''
+            cadena_evaluada = ''
+            tipoCadenaActual = ''
+
+        tipoCadenaAnterior =  tipoCadenaActual
     if(Automata.estado_actual in Automata.estados_aceptacion):
-                    agregar_token(int(Automata.estado_actual), tipoCadenaAnterior, cadena_evaluada)
+        agregar_token(tipoCadenaActual, cadena_evaluada)
             
 
 
@@ -117,8 +126,7 @@ cadena = input(f"Ingrese la cadena: ")
 inicio(automata, cadena)
 
 #imprimir todos los tokens
-for estado, tipos in tokens.items():
-    for tipo, cadenas in tipos.items():
-        print(f"  Tipo '{tipo}':")
+for tipo, cadenas in tokens.items():
+        print(f"Tipo '{tipo}':")
         for cadena in cadenas:
-            print(f"    - {cadena}")
+            print(f"  -> {cadena}")
