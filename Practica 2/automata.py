@@ -120,7 +120,7 @@ def inicio(Automata, cadena):
 
 
 # Ejemplo de uso
-automata = Automata('./Practica 2/automata.txt')
+automata = Automata('C:/Users/domo_/Documents/GitHub/Compiladores/Practica 2/automata.txt')
 
 cadena = input(f"Ingrese la cadena: ")
         
