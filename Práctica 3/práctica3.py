@@ -45,14 +45,14 @@ class AnalizadorSintactico:
                     self.next_token()  # Avanza al siguiente token
                     return True
                 return False  # Falta el paréntesis de cierre
-        elif self.current_token and (self.current_token.isalnum()):  # id o número
+        elif self.current_token and (self.current_token.isalnum() or re.match(r'^\d+\.\d+$', self.current_token)):  # id o número
             self.next_token()  # Avanza al siguiente token
             return True
         return False  # No cumple con F
 
 def tokenize(expression):
     # Divide la expresión en tokens usando una expresión regular
-    token_pattern = re.compile(r'\d+|[a-zA-Z_]\w*|[()+*/-]')
+    token_pattern = re.compile(r'\d+\.\d+|\d+|[a-zA-Z_]\w*|[()+*/-]')
     tokens = token_pattern.findall(expression)
     return tokens
 
