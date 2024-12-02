@@ -29,9 +29,9 @@ def analizadorLL1(tokens):
                     x = pila[-1]
             else:
                 if(a == 'identificador' or a == 'numero'):
-                    print('Error: se esperaba un numero o identificador')
+                    print(f'Error: se esperaba un numero o identificador después de {tokens[num-1][1]}')
                 else:
-                    print('Error: se esperaba un operador')
+                    print(f'Error: se esperaba un operador después de {tokens[num-1][1]}')
                 return False
         else:
             try:
@@ -41,9 +41,9 @@ def analizadorLL1(tokens):
                         pila.append(tablaLL1[x][a][tablaLL1[x][a].__len__()-1-i])
             except KeyError:
                 if(a == 'identificador' or a == 'numero'):
-                    print('Error: se esperaba un operador')
+                    print(f'Error: se esperaba un operador después de {tokens[num-1][1]}')
                 else:
-                    print('Error: se esperaba un número o identificador')
+                    print(f'Error: se esperaba un número o identificador después de {tokens[num-1][1]}')
                 return False
     return True
 
