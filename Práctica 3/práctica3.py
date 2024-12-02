@@ -52,7 +52,7 @@ class AnalizadorSintactico:
 
 def tokenize(expression):
     # Divide la expresión en tokens usando una expresión regular
-    token_pattern = re.compile(r'\d+\.\d+|\d+|[a-zA-Z_]\w*|[()+*/-]')
+    token_pattern = re.compile(r'\d+|[a-zA-Z_]\w*|[()+*/-]')
     tokens = token_pattern.findall(expression)
     return tokens
 
