@@ -28,6 +28,10 @@ def analizadorLL1(tokens):
                 if pila.__len__() > 0:
                     x = pila[-1]
             else:
+                if(a == 'identificador' or a == 'numero'):
+                    print('Error: se esperaba un numero o identificador')
+                else:
+                    print('Error: se esperaba un operador')
                 return False
         else:
             try:
