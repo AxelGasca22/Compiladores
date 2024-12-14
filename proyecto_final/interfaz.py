@@ -3,6 +3,13 @@ from tkinter import filedialog, scrolledtext
 from tkinter import ttk
 from tkinter import PhotoImage
 from compilador import tokenize, analizadorLL1
+from PIL import Image, ImageTk
+
+# Función para cargar y redimensionar imágenes
+def cargar_icono(ruta, ancho, alto):
+    imagen = Image.open(ruta)
+    imagen = imagen.resize((ancho, alto))  # Redimensionar (ya no se requiere Image.ANTIALIAS)
+    return ImageTk.PhotoImage(imagen)
 
 # Funciones del compilador (placeholders)
 def analizar_codigo():
@@ -115,15 +122,22 @@ botones_frame = tk.Frame(ventana)
 botones_frame.pack(side=tk.LEFT, fill=tk.Y, padx=10, pady=10)
 
 # Botones de control dentro del frame
-# Botones de control dentro del frame
-tk.Button(botones_frame, text="Compilar", command=analizar_codigo).pack(fill=tk.X, pady=5)
+# Cargar imágenes redimensionadas
+icono_compilar = cargar_icono("compile.png", 24, 24)
+icono_ejecutar = cargar_icono("execute.png", 24, 24)
+icono_guardar = cargar_icono("save.png", 24, 24)
+icono_limpiar = cargar_icono("clear.png", 24, 24)
+icono_abrir = cargar_icono("open.png", 24, 24)
 
-boton_ejecutar = tk.Button(botones_frame, text="Ejecutar", command=ejecutar_codigo, state=tk.DISABLED)  # Inicia deshabilitado
+# Botones con íconos redimensionados
+tk.Button(botones_frame, text="Compilar", image=icono_compilar, compound="left", command=analizar_codigo).pack(fill=tk.X, pady=5)
+boton_ejecutar = tk.Button(botones_frame, text="Ejecutar", image=icono_ejecutar, compound="left", command=ejecutar_codigo, state=tk.DISABLED)
 boton_ejecutar.pack(fill=tk.X, pady=5)
+boton_guardar = tk.Button(botones_frame, text="Guardar", image=icono_guardar, compound="left", command=guardar_archivo, state=tk.DISABLED)
+boton_guardar.pack(fill=tk.X, pady=5)
+tk.Button(botones_frame, text="Limpiar", image=icono_limpiar, compound="left", command=limpiar).pack(fill=tk.X, pady=5)
+tk.Button(botones_frame, text="Abrir archivo", image=icono_abrir, compound="left", command=abrir_archivo).pack(fill=tk.X, pady=5)
 
-tk.Button(botones_frame, text="Limpiar", command=limpiar).pack(fill=tk.X, pady=5)
-tk.Button(botones_frame, text="Abrir archivo", command=abrir_archivo).pack(fill=tk.X, pady=5)
-tk.Button(botones_frame, text="Guardar archivo", command=guardar_archivo).pack(fill=tk.X, pady=5)
 
 
 
