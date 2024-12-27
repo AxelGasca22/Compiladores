@@ -2,6 +2,8 @@ import tkinter as tk
 from tkinter import filedialog, scrolledtext
 from PIL import Image, ImageTk
 import compilador  # Importar el módulo completo del compilador
+import analizador_lexico
+from analizador_sintactico import AnalizadorSintactico
 
 # Función para cargar y redimensionar imágenes
 def cargar_icono(ruta, ancho, alto):
@@ -15,57 +17,86 @@ def cargar_icono(ruta, ancho, alto):
 
 # Función para analizar el código
 def analizar_codigo():
-    # Reinicia los errores en el módulo compilador
-    compilador.parser_errors = []
-
-    codigo = text_editor.get("1.0", tk.END).strip().replace('\r\n', '\n')
-    print("Código a analizar:")
-    print(repr(codigo))
-    print("Número de líneas:", codigo.count('\n') + 1)
-
-    if not codigo:
-        consola.config(state=tk.NORMAL)
-        consola.insert(tk.END, "Error: No hay código para analizar.\n")
-        consola.config(state=tk.DISABLED)
-        return
-
-    # Limpiar la consola
+    codigo = text_editor.get("1.0", tk.END).strip()
     consola.config(state=tk.NORMAL)
     consola.delete("1.0", tk.END)
 
+    # Análisis léxico
+    tokens, errores = analizador_lexico.analizar_lexico(codigo)
+    if errores:
+        consola.insert(tk.END, f"Errores léxicos: {errores}\n")
+        consola.config(state=tk.DISABLED)
+        return
+
+    # Análisis sintáctico
     try:
-        # Crear una instancia clonada del lexer para generar tokens
-        lexer_tokens = compilador.lexer.clone()
-        lexer_tokens.input(codigo)
+        sintactico = AnalizadorSintactico(tokens)
+        sintactico.programa()
 
-        tokens = []
-        while True:
-            tok = lexer_tokens.token()
-            if not tok:
-                break
-            tokens.append(f"{tok.type}({tok.value}) en línea {tok.lineno}")
-        consola.insert(tk.END, "Tokens generados:\n" + "\n".join(tokens) + "\n\n")
-
-        print("Final lexer_tokens.lineno:", lexer_tokens.lineno)
-
-        # Crear una segunda instancia clonada del lexer para el análisis sintáctico
-        lexer_parse = compilador.lexer.clone()
-        lexer_parse.input(codigo)
-
-        # Análisis sintáctico pasando la instancia clonada del lexer
-        compilador.parser.parse(codigo, lexer=lexer_parse)
-
-        # Mostrar errores sintácticos si los hay
-        if compilador.parser_errors:
-            consola.insert(tk.END, "Errores de análisis sintáctico:\n" + "\n".join(compilador.parser_errors) + "\n")
+        if sintactico.errores:
+            for error in sintactico.errores:
+                consola.config(state=tk.NORMAL)
+                consola.insert(tk.END, f"{error}\n")
+                consola.config(state=tk.DISABLED)
         else:
-            consola.insert(tk.END, "El análisis sintáctico fue exitoso.\n")
+            consola.config(state=tk.NORMAL)
+            consola.insert(tk.END, "Análisis completado sin errores\n")
+            consola.config(state=tk.DISABLED)
     except SyntaxError as e:
-        consola.insert(tk.END, f"Error de análisis sintáctico: {e}\n")
-    except Exception as e:
-        consola.insert(tk.END, f"Error durante el análisis: {e}\n")
-
+        consola.insert(tk.END, f"Error sintáctico: {e}\n")
     consola.config(state=tk.DISABLED)
+    
+    # # Reinicia los errores en el módulo compilador
+    # compilador.parser_errors = []
+
+    # codigo = text_editor.get("1.0", tk.END).strip().replace('\r\n', '\n')
+    # print("Código a analizar:")
+    # print(repr(codigo))
+    # print("Número de líneas:", codigo.count('\n') + 1)
+
+    # if not codigo:
+    #     consola.config(state=tk.NORMAL)
+    #     consola.insert(tk.END, "Error: No hay código para analizar.\n")
+    #     consola.config(state=tk.DISABLED)
+    #     return
+
+    # # Limpiar la consola
+    # consola.config(state=tk.NORMAL)
+    # consola.delete("1.0", tk.END)
+
+    # try:
+    #     # Crear una instancia clonada del lexer para generar tokens
+    #     lexer_tokens = compilador.lexer.clone()
+    #     lexer_tokens.input(codigo)
+
+    #     tokens = []
+    #     while True:
+    #         tok = lexer_tokens.token()
+    #         if not tok:
+    #             break
+    #         tokens.append(f"{tok.type}({tok.value}) en línea {tok.lineno}")
+    #     consola.insert(tk.END, "Tokens generados:\n" + "\n".join(tokens) + "\n\n")
+
+    #     print("Final lexer_tokens.lineno:", lexer_tokens.lineno)
+
+    #     # Crear una segunda instancia clonada del lexer para el análisis sintáctico
+    #     lexer_parse = compilador.lexer.clone()
+    #     lexer_parse.input(codigo)
+
+    #     # Análisis sintáctico pasando la instancia clonada del lexer
+    #     compilador.parser.parse(codigo, lexer=lexer_parse)
+
+    #     # Mostrar errores sintácticos si los hay
+    #     if compilador.parser_errors:
+    #         consola.insert(tk.END, "Errores de análisis sintáctico:\n" + "\n".join(compilador.parser_errors) + "\n")
+    #     else:
+    #         consola.insert(tk.END, "El análisis sintáctico fue exitoso.\n")
+    # except SyntaxError as e:
+    #     consola.insert(tk.END, f"Error de análisis sintáctico: {e}\n")
+    # except Exception as e:
+    #     consola.insert(tk.END, f"Error durante el análisis: {e}\n")
+
+    # consola.config(state=tk.DISABLED)
 
 # Función para simular la ejecución del código
 def ejecutar_codigo():
