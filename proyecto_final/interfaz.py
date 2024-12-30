@@ -23,6 +23,12 @@ def analizar_codigo():
 
     # Análisis léxico
     tokens, errores = analizador_lexico.analizar_lexico(codigo)
+
+    # **Imprime los tokens generados para depuración**
+    print("Tokens generados:")
+    for token in tokens:
+        print(token)
+
     if errores:
         consola.insert(tk.END, f"Errores léxicos: {errores}\n")
         consola.config(state=tk.DISABLED)
@@ -45,6 +51,7 @@ def analizar_codigo():
     except SyntaxError as e:
         consola.insert(tk.END, f"Error sintáctico: {e}\n")
     consola.config(state=tk.DISABLED)
+
     
     # # Reinicia los errores en el módulo compilador
     # compilador.parser_errors = []
