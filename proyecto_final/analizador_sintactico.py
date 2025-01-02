@@ -1,4 +1,6 @@
+# analizador_sintactico.py
 
+import libestandar
 
 class AnalizadorSintactico:
     def __init__(self, tokens):
@@ -8,12 +10,28 @@ class AnalizadorSintactico:
         self.ultimo_token_valido = None  # Último token consumido exitosamente
         self.en_recuperacion = False  # Nueva bandera de recuperación
 
-        # Tabla de símbolos: Diccionario para almacenar variables y sus tipos
-        # Estructura: { 'nombre_variable': 'tipo', ... }
+        # Tabla de símbolos: Diccionario para almacenar variables y funciones
+        # Estructura: { 'nombre': {'return_type': 'tipo', 'params': [...], 'es_funcion': bool}, ... }
         self.tabla_simbolos = {}
 
         # Pila de ámbitos para manejar scopes (por ejemplo, funciones)
         self.pila_ambitos = []  # Cada elemento es un diccionario de variables
+
+        # Cargar la biblioteca estándar en la tabla de símbolos
+        self.cargar_biblioteca_estandar()
+
+    def cargar_biblioteca_estandar(self):
+        for func_name, signature in libestandar.standard_library.items():
+            self.tabla_simbolos[func_name] = {
+                'return_type': signature['return_type'],  # Cambio clave a 'return_type'
+                'params': signature['params'],
+                'es_funcion': True
+            }
+            print(f"Función estándar cargada: {func_name} con parámetros {signature['params']} y retorno {signature['return_type']}")
+
+        print("\nTabla de Símbolos Después de Cargar la Biblioteca Estándar:")
+        for nombre, info in self.tabla_simbolos.items():
+            print(f"{nombre}: {info}")
 
     def obtener_token(self):
         token = self.tokens[self.indice] if self.indice < len(self.tokens) else None
@@ -47,8 +65,7 @@ class AnalizadorSintactico:
     def sincronizar(self, sincronizadores):
         while self.obtener_token() and self.tokens[self.indice][0] not in sincronizadores:
             self.indice += 1
-        if self.obtener_token() and self.tokens[self.indice][0] in sincronizadores:
-            self.indice += 1
+        # No consumir el token de sincronización para permitir su procesamiento
         self.en_recuperacion = False  # Desactivar modo de recuperación
 
     def programa(self):
@@ -69,15 +86,22 @@ class AnalizadorSintactico:
             self.sincronizar(["PUNTUACION", "RESERVADA"])  # Sincronizar para evitar más errores
             return False  # Evitar continuar si no hay nombre de función
 
-        # Suponiendo que las funciones pueden tener parámetros, se podría manejar aquí
+        nombre_funcion = self.ultimo_token_valido[1]
 
         if not self.coincidir("PUNTUACION", "("):
             self.registrar_error("Se esperaba '(' después del nombre de la función")
-        self.parametros()
+        params = self.parametros()
         if not self.coincidir("PUNTUACION", ")"):
             self.registrar_error("Se esperaba ')' después de los parámetros")
         if not self.coincidir("PUNTUACION", "{"):
             self.registrar_error("Se esperaba '{' para abrir el cuerpo de la función")
+
+        # Agregar la función a la tabla de símbolos
+        self.tabla_simbolos[nombre_funcion] = {
+            'return_type': 'void',  # Cambio clave a 'return_type'
+            'params': params,
+            'es_funcion': True
+        }
 
         self.sentencias()
 
@@ -90,16 +114,19 @@ class AnalizadorSintactico:
         return True
 
     def parametros(self):
+        params = []
         if self.coincidir("IDENTIFICADOR"):
-            # Aquí podrías agregar la lógica para manejar parámetros y agregarlos a la tabla de símbolos
+            params.append('entero')  # Suponiendo que todos los parámetros son enteros; ajustar según sea necesario
             while self.coincidir("PUNTUACION", ","):
                 if not self.coincidir("IDENTIFICADOR"):
                     self.registrar_error("Se esperaba un identificador después de ','")
                     self.sincronizar(["PUNTUACION"])
-                    return  # Salir para evitar más errores
+                    return params
+                params.append('entero')  # Ajustar tipos según sea necesario
+        return params
 
     def sentencias(self):
-        while self.declaracion() or self.condicional() or self.llamada():
+        while self.declaracion() or self.condicional():
             pass
 
     def declaracion(self):
@@ -117,7 +144,9 @@ class AnalizadorSintactico:
 
             # Verificar si la variable ya está declarada en el ámbito actual
             if self.esta_declarada_en_ambito_actual(nombre_variable):
-                self.errores.append(f"Error semántico: Variable '{nombre_variable}' ya está declarada en el ámbito actual (línea {token_variable[2]}, columna {token_variable[3]})")
+                self.errores.append(
+                    f"Error semántico: Variable '{nombre_variable}' ya está declarada en el ámbito actual (línea {token_variable[2]}, columna {token_variable[3]})"
+                )
             else:
                 # Agregar la variable a la tabla de símbolos en el ámbito actual
                 self.agregar_variable(nombre_variable, tipo_variable)
@@ -127,7 +156,9 @@ class AnalizadorSintactico:
                 tipo_expresion = self.expresion()
                 # Verificar tipos en la asignación
                 if tipo_expresion and tipo_expresion != tipo_variable:
-                    self.errores.append(f"Error semántico: Tipo inconsistente en la asignación de '{nombre_variable}'. Esperado '{tipo_variable}', encontrado '{tipo_expresion}' (línea {token_variable[2]}, columna {token_variable[3]})")
+                    self.errores.append(
+                        f"Error semántico: Tipo inconsistente en la asignación de '{nombre_variable}'. Esperado '{tipo_variable}', encontrado '{tipo_expresion}' (línea {token_variable[2]}, columna {token_variable[3]})"
+                    )
 
             # Verificar el punto y coma
             if not self.coincidir("PUNTUACION", ";"):
@@ -144,13 +175,17 @@ class AnalizadorSintactico:
             # Verificar que la variable haya sido declarada
             tipo_variable = self.obtener_tipo_variable(nombre_variable)
             if not tipo_variable:
-                self.errores.append(f"Error semántico: Variable '{nombre_variable}' no declarada (línea {token_variable[2]}, columna {token_variable[3]})")
+                self.errores.append(
+                    f"Error semántico: Variable '{nombre_variable}' no declarada (línea {token_variable[2]}, columna {token_variable[3]})"
+                )
 
             if self.coincidir("OPERADOR", "="):
                 tipo_expresion = self.expresion()
                 # Verificar tipos en la asignación
                 if tipo_variable and tipo_expresion and tipo_expresion != tipo_variable:
-                    self.errores.append(f"Error semántico: Tipo inconsistente en la asignación de '{nombre_variable}'. Esperado '{tipo_variable}', encontrado '{tipo_expresion}' (línea {token_variable[2]}, columna {token_variable[3]})")
+                    self.errores.append(
+                        f"Error semántico: Tipo inconsistente en la asignación de '{nombre_variable}'. Esperado '{tipo_variable}', encontrado '{tipo_expresion}' (línea {token_variable[2]}, columna {token_variable[3]})"
+                    )
                 # Verificar el punto y coma
                 if not self.coincidir("PUNTUACION", ";"):
                     self.registrar_error("Se esperaba ';' al final de la asignación", consumir=False)
@@ -198,7 +233,7 @@ class AnalizadorSintactico:
             self.sentencias()
 
             if not self.coincidir("PUNTUACION", "}"):
-                self.registrar_error("Se esperaba '}' para cerrar el bloque 'sino'")
+                self.registrar_error("Se espera '}' para cerrar el bloque 'sino'")
 
             # Fin del ámbito del bloque 'sino'
             if self.pila_ambitos:
@@ -206,19 +241,63 @@ class AnalizadorSintactico:
         return True
 
     def llamada(self):
-        if not self.coincidir("RESERVADA", "imprimir"):
-            return False
-        if not self.coincidir("PUNTUACION", "("):
-            self.registrar_error("Se esperaba '(' después de 'imprimir'")
-        tipo_expresion = self.expresion()
-        # Podrías verificar el tipo de expresión si tu lenguaje lo requiere
-        if not self.coincidir("PUNTUACION", ")"):
-            self.registrar_error("Se esperaba ')' después de la expresión")
-        if not self.coincidir("PUNTUACION", ";"):
-            self.registrar_error("Se esperaba ';' después de la llamada a 'imprimir'", consumir=False)
-            self.sincronizar(["PUNTUACION"])
+        token_funcion = self.ultimo_token_valido
+        nombre_funcion = token_funcion[1]
+
+        # Verificar si la función está en la tabla de símbolos (incluyendo la biblioteca estándar)
+        if nombre_funcion in self.tabla_simbolos and self.tabla_simbolos[nombre_funcion]['es_funcion']:
+            # Obtener la firma de la función
+            firma_funcion = self.tabla_simbolos[nombre_funcion]
+            params_esperados = firma_funcion['params']
+            num_params_esperados = len(params_esperados)
+
+            if not self.coincidir("PUNTUACION", "("):
+                self.registrar_error(f"Se esperaba '(' después de '{nombre_funcion}'")
+                return False
+
+            # Obtener la lista de argumentos
+            argumentos = self.lista_argumentos()
+
+            # Verificar el número de argumentos
+            if len(argumentos) != num_params_esperados:
+                self.errores.append(
+                    f"Error semántico: La función '{nombre_funcion}' espera {num_params_esperados} argumentos, pero se recibieron {len(argumentos)} (línea {token_funcion[2]}, columna {token_funcion[3]})"
+                )
+
+            # Verificar los tipos de los argumentos
+            for i, arg in enumerate(argumentos):
+                tipo_arg = arg  # En tu implementación actual, `expresion()` retorna el tipo
+                tipo_esperado = params_esperados[i]
+                if tipo_arg != tipo_esperado:
+                    self.errores.append(
+                        f"Error semántico: Argumento {i+1} de la función '{nombre_funcion}' espera tipo '{tipo_esperado}', pero se encontró tipo '{tipo_arg}' (línea {token_funcion[2]}, columna {token_funcion[3]})"
+                    )
+
+            if not self.coincidir("PUNTUACION", ")"):
+                self.registrar_error(f"Se esperaba ')' después de los argumentos de '{nombre_funcion}'")
+
+            if not self.coincidir("PUNTUACION", ";"):
+                self.registrar_error(f"Se esperaba ';' después de la llamada a '{nombre_funcion}'", consumir=False)
+                self.sincronizar(["PUNTUACION"])
+
             return True
-        return True
+        else:
+            # Manejar llamadas a funciones definidas por el usuario o reportar error si no existe
+            self.errores.append(
+                f"Error semántico: La función '{nombre_funcion}' no está definida (línea {token_funcion[2]}, columna {token_funcion[3]})"
+            )
+            self.sincronizar(["PUNTUACION"])
+            return False
+
+    def lista_argumentos(self):
+        argumentos = []
+        while True:
+            tipo_expresion = self.expresion()
+            if tipo_expresion is not None:
+                argumentos.append(tipo_expresion)
+            if not self.coincidir("PUNTUACION", ","):
+                break
+        return argumentos
 
     def expresion(self):
         # Aquí simplificamos asumiendo que todas las expresiones retornan su tipo
@@ -227,36 +306,76 @@ class AnalizadorSintactico:
         if self.coincidir("IDENTIFICADOR"):
             token_var = self.ultimo_token_valido
             nombre_var = token_var[1]
-            tipo_var = self.obtener_tipo_variable(nombre_var)
-            if not tipo_var:
-                self.errores.append(f"Error semántico: Variable '{nombre_var}' no declarada (línea {token_var[2]}, columna {token_var[3]})")
-            tipo_resultado = tipo_var
+
+            # Verificar si el siguiente token es '(' para determinar si es una llamada a función
+            if self.coincidir("PUNTUACION", "("):
+                # Es una llamada a función
+                argumentos = self.lista_argumentos()
+
+                if not self.coincidir("PUNTUACION", ")"):
+                    self.registrar_error(f"Se esperaba ')' después de los argumentos de la función '{nombre_var}'")
+
+                # Validar la función
+                if nombre_var in self.tabla_simbolos and self.tabla_simbolos[nombre_var]['es_funcion']:
+                    firma_funcion = self.tabla_simbolos[nombre_var]
+                    params_esperados = firma_funcion['params']
+                    num_params_esperados = len(params_esperados)
+
+                    # Verificar el número de argumentos
+                    if len(argumentos) != num_params_esperados:
+                        self.errores.append(
+                            f"Error semántico: La función '{nombre_var}' espera {num_params_esperados} argumentos, pero se recibieron {len(argumentos)} (línea {token_var[2]}, columna {token_var[3]})"
+                        )
+
+                    # Verificar los tipos de los argumentos
+                    for i, arg in enumerate(argumentos):
+                        tipo_arg = arg  # `expresion()` retorna el tipo
+                        tipo_esperado = params_esperados[i]
+                        if tipo_arg != tipo_esperado:
+                            self.errores.append(
+                                f"Error semántico: Argumento {i+1} de la función '{nombre_var}' espera tipo '{tipo_esperado}', pero se encontró tipo '{tipo_arg}' (línea {token_var[2]}, columna {token_var[3]})"
+                            )
+
+                    # Asignar el tipo de retorno de la función
+                    tipo_resultado = firma_funcion['return_type']
+                else:
+                    self.errores.append(
+                        f"Error semántico: La función '{nombre_var}' no está definida (línea {token_var[2]}, columna {token_var[3]})"
+                    )
+                    tipo_resultado = None
+            else:
+                # Es una variable
+                tipo_var = self.obtener_tipo_variable(nombre_var)
+                if not tipo_var:
+                    self.errores.append(
+                        f"Error semántico: Variable '{nombre_var}' no declarada (línea {token_var[2]}, columna {token_var[3]})"
+                    )
+                tipo_resultado = tipo_var
         elif self.coincidir("NUMERO"):
             tipo_resultado = "entero"
+        elif self.coincidir("CADENA"):
+            tipo_resultado = "cadena"
         else:
-            self.registrar_error("Se esperaba una expresión válida")
+            self.registrar_error("Se espera una expresión válida")
             return None
 
         # Manejar operadores relacionales
         if self.coincidir("RELACIONAL"):
             operador = self.ultimo_token_valido[1]
             tipo_operador = "relacional"
-            # Para simplificar, asumimos que las expresiones relacionales retornan booleano
-            # Podrías agregar más lógica para verificar tipos si tu lenguaje lo requiere
-            # Aquí simplemente retornamos un tipo ficticio 'booleano'
+            # Asumimos que las expresiones relacionales retornan booleano
             tipo_resultado = "booleano"
-            if not (self.coincidir("IDENTIFICADOR") or self.coincidir("NUMERO")):
-                self.registrar_error("Se esperaba un identificador o número después del operador relacional")
+            if not (self.coincidir("IDENTIFICADOR") or self.coincidir("NUMERO") or self.coincidir("CADENA")):
+                self.registrar_error("Se espera un identificador, número o cadena después del operador relacional")
 
         # Manejar operadores aritméticos
         while self.coincidir("OPERADOR"):
             operador = self.ultimo_token_valido[1]
             tipo_operador = "aritmetico"
             # Verificar que los operandos sean del tipo correcto
-            if not (self.coincidir("IDENTIFICADOR") or self.coincidir("NUMERO")):
-                self.registrar_error("Se esperaba un identificador o número después del operador")
-            # Aquí podrías agregar más lógica para determinar el tipo_resultado basado en los operandos
-            # Por simplicidad, asumimos que las operaciones aritméticas resultan en 'entero'
+            if not (self.coincidir("IDENTIFICADOR") or self.coincidir("NUMERO") or self.coincidir("CADENA")):
+                self.registrar_error("Se espera un identificador, número o cadena después del operador")
+            # Asumimos que las operaciones aritméticas resultan en 'entero'
             tipo_resultado = "entero"
 
         return tipo_resultado
@@ -269,18 +388,26 @@ class AnalizadorSintactico:
             self.pila_ambitos.append({})
         ambito_actual = self.pila_ambitos[-1]
         ambito_actual[nombre] = tipo
-        self.tabla_simbolos[nombre] = tipo
+        self.tabla_simbolos[nombre] = {
+            'return_type': tipo,  # Cambio clave a 'return_type' para consistencia
+            'params': [],
+            'es_funcion': False
+        }
         print(f"Variable '{nombre}' de tipo '{tipo}' agregada al ámbito actual.")
-
-    def esta_declarada_en_ambito_actual(self, nombre):
+    
+    def esta_declarada_en_ambito_actual(self, nombre_variable):
         if not self.pila_ambitos:
             return False
         ambito_actual = self.pila_ambitos[-1]
-        return nombre in ambito_actual
-
-    def obtener_tipo_variable(self, nombre):
-        # Busca la variable en los ámbitos desde el más interno al más externo
+        return nombre_variable in ambito_actual
+    
+    def obtener_tipo_variable(self, nombre_variable):
         for ambito in reversed(self.pila_ambitos):
-            if nombre in ambito:
-                return ambito[nombre]
+            if nombre_variable in ambito:
+                return ambito[nombre_variable]
         return None
+
+
+def main():
+    # Puedes implementar un método main si lo deseas
+    pass

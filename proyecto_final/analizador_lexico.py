@@ -2,12 +2,13 @@ import re
 
 TOKENS = [
     ("RESERVADA", r"\b(funcion|si|sino|imprimir|entero)\b"),  # Palabras reservadas
-    ("IDENTIFICADOR", r"[a-zA-Z_][a-zA-Z_0-9]*"),      # Nombres de variables y funciones
-    ("NUMERO", r"\b\d+\b"),                           # Números enteros
-    ("OPERADOR", r"[+\-*/=]"),                        # Operadores aritméticos y asignación
-    ("RELACIONAL", r"(>=|<=|==|!=|>|<)"),             # Operadores relacionales
-    ("PUNTUACION", r"[;{}(),]"),                      # Caracteres de puntuación
-    ("ESPACIOS", r"\s+"),                             # Ignorar espacios en blanco
+    ("CADENA", r'"[^"\n]*"'),                                 # Cadenas de texto entre comillas dobles
+    ("IDENTIFICADOR", r"[a-zA-Z_][a-zA-Z_0-9]*"),             # Nombres de variables y funciones
+    ("NUMERO", r"\b\d+\b"),                                   # Números enteros
+    ("OPERADOR", r"[+\-*/=]"),                                # Operadores aritméticos y asignación
+    ("RELACIONAL", r"(>=|<=|==|!=|>|<)"),                     # Operadores relacionales
+    ("PUNTUACION", r"[;{}(),]"),                              # Caracteres de puntuación
+    ("ESPACIOS", r"\s+"),                                     # Ignorar espacios en blanco
 ]
 
 def analizar_lexico(codigo):
@@ -26,18 +27,20 @@ def analizar_lexico(codigo):
                 if tipo != "ESPACIOS":  # Ignorar espacios
                     tokens.append((tipo, coincidencia.group(), linea, columna))
                 # Actualizar posición y columna
+                token_text = coincidencia.group()
                 posicion = coincidencia.end()
-                columna += len(coincidencia.group())
-                # Manejar saltos de línea dentro de un token (poco probable aquí, pero puede ser relevante)
-                if "\n" in coincidencia.group():
-                    salto_lineas = coincidencia.group().count("\n")
-                    linea += salto_lineas
-                    columna = len(coincidencia.group().split("\n")[-1]) + 1
+                lines = token_text.split('\n')
+                if len(lines) > 1:
+                    linea += len(lines) - 1
+                    columna = len(lines[-1]) + 1
+                else:
+                    columna += len(token_text)
                 break
         if not coincidencia:
             # Manejar errores léxicos
-            errores.append((codigo[posicion], linea, columna))
-            if codigo[posicion] == '\n':  # Manejar salto de línea
+            char = codigo[posicion]
+            errores.append((char, linea, columna))
+            if char == '\n':  # Manejar salto de línea
                 linea += 1
                 columna = 1
             else:
@@ -45,4 +48,3 @@ def analizar_lexico(codigo):
             posicion += 1
 
     return tokens, errores
-

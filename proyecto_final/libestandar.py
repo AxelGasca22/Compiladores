@@ -1,11 +1,13 @@
 # libestandar.py
 
-# Definición de la biblioteca estándar con firmas de funciones
-
 standard_library = {
-    'imprimir': {
-        'params': ['entero', 'cadena', 'booleano'],  # Tipos de parámetros
-        'return_type': 'void'                        # Tipo de retorno
+    'imprimir_entero': {
+        'params': ['entero'],
+        'return_type': 'void'
+    },
+    'imprimir_cadena': {
+        'params': ['cadena'],
+        'return_type': 'void'
     },
     'sumar': {
         'params': ['entero', 'entero'],
@@ -32,11 +34,11 @@ standard_library = {
         'return_type': 'entero'
     },
     'derivada': {
-        'params': ['cadena', 'cadena'],  # Por ejemplo, derivada(función, variable)
+        'params': ['cadena', 'cadena'],  # derivada(funcion, variable)
         'return_type': 'cadena'
     },
     'integral': {
-        'params': ['cadena', 'cadena'],  # Por ejemplo, integral(función, variable)
+        'params': ['cadena', 'cadena'],  # integral(funcion, variable)
         'return_type': 'cadena'
     },
 }
