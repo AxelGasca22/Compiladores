@@ -1,4 +1,4 @@
-# analizador_semantico.py
+# analizador_semantico.py1
 
 from custom_ast import Nodo
 
