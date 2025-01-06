@@ -1,0 +1,121 @@
+Caracteres no conocidos
+
+funcion main() {
+    entero a = 10;
+    entero b = 20;
+    entero c = sumar(a, "b");
+    imprimir_enterno(c);
+    derivada("x**2", 5);
+    integral("2*x + 3", "x", "extra");
+    z = 10 + 5;
+    @invalidToken;
+}
+
+Identificadores no validos
+
+
+funcion main() {
+    entero 1a = 10; // Identificador comienza con un número
+    entero _b = 20;  // Válido
+    entero a-b = 30; // Guion en el nombre de la variable
+}
+
+
+Numeros mal formateados
+
+funcion main() {
+    entero a = 10.5; // Asignando un número decimal a un entero
+    entero b = 20;
+    entero c = sumar(a, "b");
+}
+
+Cadenas no cerradas
+
+funcion main() {
+    entero a = 10;
+    cadena saludo = "Hola mundo;
+}
+
+
+*****************ERRORES SINTACTICOS*******************
+
+Paréntesis desbalanceados
+
+funcion main() {
+    entero a = 10;
+    entero b = 20;
+    entero c = sumar(a, "b";
+    imprimir_enterno(c);
+}
+
+
+Punto y coma faltante
+
+funcion main() {
+    entero a = 10
+    entero b = 20;
+    entero c = sumar(a, "b");
+    imprimir_enterno(c);
+}
+
+
+Declaración de función incorrecta
+
+
+funcion main {
+    entero a = 10;
+    entero b = 20;
+    entero c = sumar(a, "b");
+    imprimir_enterno(c);
+}
+
+
+Uso incorrecto de palabras reservadas
+
+funcion funcion() {
+    entero a = 10;
+    entero b = 20;
+}
+
+
+**********************ERRORES SEMANTICOS**********************
+
+Variable no declarada
+
+funcion main() {
+    entero a = 10;
+    entero b = 20;
+    entero c = sumar(a, d); // Variable 'd' no declarada
+    imprimir_enterno(c);
+}
+
+
+Tipos de datos incompatibles
+
+funcion main() {
+    entero a = 10;
+    cadena b = "texto";
+    entero c = sumar(a, b); // 'b' es cadena, se espera entero
+    imprimir_enterno(c);
+}
+
+
+Numero incorrecto de argumentos en funciones
+
+funcion main() {
+    entero a = 10;
+    entero b = 20;
+    entero c = sumar(a, "b", 5); // Demasiados argumentos
+    imprimir_enterno(c);
+}
+
+
+Uso incorrecto de funciones a la biblioteca estándar
+
+funcion main() {
+    entero a = 10;
+    imprimir_enterno("Diez"); // Pasando cadena en lugar de entero
+}
+
+
+

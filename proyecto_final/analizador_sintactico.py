@@ -1,4 +1,4 @@
-# analizador_sintactico.py (actualizado con depuración)
+# analizador_sintactico.py (actualizado con manejo de asignaciones y expresiones aritméticas)
 
 import libestandar
 from custom_ast import Nodo
@@ -33,6 +33,9 @@ class AnalizadorSintactico:
 
     def obtener_token(self):
         return self.tokens[self.indice] if self.indice < len(self.tokens) else None
+
+    def siguiente_token(self):
+        return self.tokens[self.indice + 1] if (self.indice + 1) < len(self.tokens) else None
 
     def coincidir(self, tipo, valor=None):
         token = self.obtener_token()
@@ -132,22 +135,36 @@ class AnalizadorSintactico:
         sentencias = []
         print(f"Inicio de parseo de sentencias en índice {self.indice}")
         while True:
+            # Intentar parsear una declaración
             nodo = self.declaracion()
             if nodo:
                 sentencias.append(nodo)
                 print(f"Declaración '{nodo.valor}' agregada al AST")
                 continue
+
+            # Intentar parsear una asignación
+            nodo = self.asignacion()
+            if nodo:
+                sentencias.append(nodo)
+                print(f"Asignación '{nodo.valor}' agregada al AST")
+                continue
+
+            # Intentar parsear una condicional
             nodo = self.condicional()
             if nodo:
                 sentencias.append(nodo)
                 print(f"Condicional agregada al AST")
                 continue
+
+            # Intentar parsear una llamada a función
             nodo = self.llamada()
             if nodo:
                 sentencias.append(nodo)
                 print(f"Llamada a función '{nodo.valor}' agregada al AST")
                 continue
-            break  # Si ninguna de las sentencias coincide, salir del bucle
+
+            # Si ninguna sentencia coincide, salir del bucle
+            break
         print(f"Fin de parseo de sentencias en índice {self.indice}")
         return Nodo('Sentencias', hijos=sentencias)
 
@@ -170,6 +187,29 @@ class AnalizadorSintactico:
                 self.sincronizar(["PUNTUACION"])
             return nodo_declaracion
         return None
+
+    def asignacion(self):
+        print(f"Intentando parsear asignación en índice {self.indice}")
+        token_actual = self.obtener_token()
+        token_siguiente = self.siguiente_token()
+
+        # Verificar si es una asignación mirando el siguiente token
+        if token_actual and token_actual[0] == "IDENTIFICADOR" and token_siguiente and token_siguiente[0] == "OPERADOR" and token_siguiente[1] == "=":
+            nombre_var = token_actual[1]
+            print(f"Nombre de variable para asignación detectado: {nombre_var}")
+            self.indice += 2  # Consumir IDENTIFICADOR y '='
+
+            expresion = self.expresion()
+            if not self.coincidir("PUNTUACION", ";"):
+                self.registrar_error(f"Se esperaba ';' después de la asignación de '{nombre_var}'", consumir=False)
+                self.sincronizar(["PUNTUACION"])
+
+            nodo_asignacion = Nodo('Asignacion', valor=nombre_var, hijos=[expresion])
+            print(f"Asignación a '{nombre_var}' agregada al AST")
+            return nodo_asignacion
+        else:
+            # No es una asignación, retornar None sin registrar error
+            return None
 
     def condicional(self):
         if not self.coincidir("RESERVADA", "si"):
@@ -198,6 +238,7 @@ class AnalizadorSintactico:
         return nodo_condicional
 
     def llamada(self):
+        # Detectar llamada a función
         if not self.coincidir("IDENTIFICADOR"):
             return None
         nombre_funcion = self.ultimo_token_valido[1]
@@ -230,13 +271,50 @@ class AnalizadorSintactico:
         return args
 
     def expresion(self):
-        # Simplificación: retorna un nodo de Identificador, Llamada, Numero o Cadena
-        if self.coincidir("IDENTIFICADOR"):
+        return self.expr()
+
+    def expr(self):
+        """Parsea una expresión con operadores '+' y '-'."""
+        nodo = self.termino()
+        while self.obtener_token() and self.tokens[self.indice][0] == 'OPERADOR' and self.tokens[self.indice][1] in ['+', '-']:
+            operador = self.tokens[self.indice][1]
+            print(f"Operador encontrado en expresión: {operador}")
+            self.indice += 1
+            termino = self.termino()
+            nodo = Nodo('Expresion', valor=operador, hijos=[nodo, termino])
+        return nodo
+
+    def termino(self):
+        """Parsea un término con operadores '*' y '/'."""
+        nodo = self.factor()
+        while self.obtener_token() and self.tokens[self.indice][0] == 'OPERADOR' and self.tokens[self.indice][1] in ['*', '/']:
+            operador = self.tokens[self.indice][1]
+            print(f"Operador encontrado en término: {operador}")
+            self.indice += 1
+            factor = self.factor()
+            nodo = Nodo('Termino', valor=operador, hijos=[nodo, factor])
+        return nodo
+
+    def factor(self):
+        """Parsea un factor: número, identificador, cadena o expresión entre paréntesis."""
+        token = self.obtener_token()
+        if not token:
+            self.registrar_error("Se esperaba un factor pero se llegó al final del archivo")
+            return Nodo('Factor', 'undefined', [])
+        
+        if self.coincidir("PUNTUACION", "("):
+            print("Factor: expresión entre paréntesis")
+            expr = self.expresion()
+            if not self.coincidir("PUNTUACION", ")"):
+                self.registrar_error("Se esperaba ')' después de la expresión")
+            return Nodo('Parentesis', valor='(', hijos=[expr])
+        elif self.coincidir("IDENTIFICADOR"):
             nombre = self.ultimo_token_valido[1]
-            print(f"Expresión con Identificador detectado: {nombre}")
+            print(f"Factor con Identificador detectado: {nombre}")
             # Verificar si el siguiente token es '(' para determinar si es una llamada a función
-            if self.coincidir("PUNTUACION", "("):
-                print(f"Expresión detectada como llamada a función: {nombre}")
+            if self.obtener_token() and self.tokens[self.indice][0] == "PUNTUACION" and self.tokens[self.indice][1] == "(":
+                print(f"Factor detectado como llamada a función: {nombre}")
+                self.indice += 1  # Consumir '('
                 args = self.lista_argumentos()
                 if not self.coincidir("PUNTUACION", ")"):
                     self.registrar_error(f"Se espera ')' después de los argumentos de la función '{nombre}'")
@@ -247,14 +325,15 @@ class AnalizadorSintactico:
                 return nodo_identificador
         elif self.coincidir("NUMERO"):
             valor = self.ultimo_token_valido[1]
-            print(f"Expresión con Número detectado: {valor}")
+            print(f"Factor con Número detectado: {valor}")
             nodo_numero = Nodo('Numero', valor=valor)
             return nodo_numero
         elif self.coincidir("CADENA"):
             valor = self.ultimo_token_valido[1]
-            print(f"Expresión con Cadena detectada: {valor}")
+            print(f"Factor con Cadena detectada: {valor}")
             nodo_cadena = Nodo('Cadena', valor=valor)
             return nodo_cadena
         else:
-            self.registrar_error("Se espera una expresión válida")
-            return None
+            self.registrar_error(f"Se esperaba un factor válido pero se encontró '{token[1]}'")
+            self.indice += 1
+            return Nodo('Factor', 'undefined', [])
