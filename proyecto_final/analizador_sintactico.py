@@ -104,15 +104,33 @@ class AnalizadorSintactico:
         if not self.coincidir("PUNTUACION", "{"):
             self.registrar_error("Se esperaba '{' para abrir el cuerpo de la función")
 
+        # Parsear sentencias hasta encontrar '}'
+        sentencias_funcion = []
+        while True:
+            if self.coincidir("PUNTUACION", "}"):
+                break  # Fin del cuerpo de la función
+
+            token_actual = self.obtener_token()
+            if token_actual is None:  # Fin inesperado del archivo
+                self.registrar_error("Fin inesperado del archivo. Se esperaba '}'")
+                break
+
+            # Intenta parsear una sentencia
+            nodo_sentencia = self.sentencias()
+            if nodo_sentencia and nodo_sentencia.hijos:
+                sentencias_funcion.append(nodo_sentencia)
+            else:
+                # Si no se pudo procesar una sentencia válida, avanza el índice para evitar bucles infinitos
+                print(f"Descartando token no válido: {self.obtener_token()} en índice {self.indice}")
+                self.indice += 1
+
         nodo_funcion = Nodo('Funcion', valor=nombre_funcion, hijos=[
             Nodo('Parametros', hijos=[Nodo('Parametro', valor=p) for p in params]),
-            self.sentencias()
+            Nodo('Sentencias', hijos=sentencias_funcion)
         ])
-
-        if not self.coincidir("PUNTUACION", "}"):
-            self.registrar_error("Se esperaba '}' para cerrar el cuerpo de la función")
-
+        print(f"Función '{nombre_funcion}' procesada con éxito")
         return nodo_funcion
+
 
     def parametros(self):
         params = []
@@ -200,20 +218,29 @@ class AnalizadorSintactico:
     def llamada(self):
         if not self.coincidir("IDENTIFICADOR"):
             return None
-        nombre_funcion = self.ultimo_token_valido[1]
-        print(f"Llamada a función detectada: {nombre_funcion}")
+        nombre_var = self.ultimo_token_valido[1]
+
+        # Detectar asignación
+        if self.coincidir("OPERADOR", "="):
+            expr = self.expresion()
+            if expr:
+                if not self.coincidir("PUNTUACION", ";"):
+                    self.registrar_error("Se esperaba ';' al final de la asignación")
+                return Nodo('Asignacion', valor=nombre_var, hijos=[expr])
+            else:
+                self.registrar_error("Se esperaba una expresión después de '='")
+                return None
+
+        # Continuar como una llamada si no es asignación
         if not self.coincidir("PUNTUACION", "("):
-            self.registrar_error(f"Se esperaba '(' después de '{nombre_funcion}'")
+            self.registrar_error(f"Se esperaba '(' después de '{nombre_var}'")
             return None
         args = self.lista_argumentos()
         if not self.coincidir("PUNTUACION", ")"):
-            self.registrar_error(f"Se esperaba ')' después de los argumentos de '{nombre_funcion}'")
+            self.registrar_error(f"Se esperaba ')' después de los argumentos de '{nombre_var}'")
         if not self.coincidir("PUNTUACION", ";"):
-            self.registrar_error(f"Se esperaba ';' después de la llamada a '{nombre_funcion}'", consumir=False)
-            self.sincronizar(["PUNTUACION"])
-        nodo_llamada = Nodo('Llamada', valor=nombre_funcion, hijos=args)
-        print(f"Llamada a función '{nombre_funcion}' agregada al AST")
-        return nodo_llamada
+            self.registrar_error(f"Se esperaba ';' después de la llamada a '{nombre_var}'", consumir=False)
+        return Nodo('Llamada', valor=nombre_var, hijos=args)
 
     def lista_argumentos(self):
         args = []
@@ -230,31 +257,67 @@ class AnalizadorSintactico:
         return args
 
     def expresion(self):
-        # Simplificación: retorna un nodo de Identificador, Llamada, Numero o Cadena
-        if self.coincidir("IDENTIFICADOR"):
-            nombre = self.ultimo_token_valido[1]
-            print(f"Expresión con Identificador detectado: {nombre}")
-            # Verificar si el siguiente token es '(' para determinar si es una llamada a función
-            if self.coincidir("PUNTUACION", "("):
-                print(f"Expresión detectada como llamada a función: {nombre}")
-                args = self.lista_argumentos()
-                if not self.coincidir("PUNTUACION", ")"):
-                    self.registrar_error(f"Se espera ')' después de los argumentos de la función '{nombre}'")
-                nodo_llamada = Nodo('Llamada', valor=nombre, hijos=args)
-                return nodo_llamada
+        izquierda = self.termino()  # Procesar términos primero
+        if not izquierda:
+            return None
+
+        while True:
+            if self.coincidir("OPERADOR", "+"):
+                derecha = self.termino()
+                if derecha:
+                    izquierda = Nodo('Operacion', valor='+', hijos=[izquierda, derecha])
+                else:
+                    self.registrar_error("Se esperaba un término después de '+'")
+                    return None
+            elif self.coincidir("OPERADOR", "-"):
+                derecha = self.termino()
+                if derecha:
+                    izquierda = Nodo('Operacion', valor='-', hijos=[izquierda, derecha])
+                else:
+                    self.registrar_error("Se esperaba un término después de '-'")
+                    return None
             else:
-                nodo_identificador = Nodo('Identificador', valor=nombre)
-                return nodo_identificador
+                break
+        return izquierda
+
+    def termino(self):
+        # Un término puede ser un número, un identificador o una expresión con paréntesis
+        izquierda = self.factor()
+        if not izquierda:
+            return None
+
+        while True:
+            # Analizar operaciones de multiplicación y división
+            if self.coincidir("OPERADOR", "*"):
+                derecha = self.factor()
+                if derecha:
+                    izquierda = Nodo('Operacion', valor='*', hijos=[izquierda, derecha])
+                else:
+                    return None
+            elif self.coincidir("OPERADOR", "/"):
+                derecha = self.factor()
+                if derecha:
+                    izquierda = Nodo('Operacion', valor='/', hijos=[izquierda, derecha])
+                else:
+                    return None
+            else:
+                break  # Si no hay más operadores, salir del bucle
+
+        return izquierda
+
+    def factor(self):
+        # Un factor puede ser un número, un identificador o una expresión entre paréntesis
+        if self.coincidir("PUNTUACION", "("):
+            expr = self.expresion()
+            if not self.coincidir("PUNTUACION", ")"):
+                self.registrar_error("Se esperaba ')'")
+            return expr
         elif self.coincidir("NUMERO"):
             valor = self.ultimo_token_valido[1]
-            print(f"Expresión con Número detectado: {valor}")
-            nodo_numero = Nodo('Numero', valor=valor)
-            return nodo_numero
-        elif self.coincidir("CADENA"):
+            return Nodo('Numero', valor=valor)
+        elif self.coincidir("IDENTIFICADOR"):
             valor = self.ultimo_token_valido[1]
-            print(f"Expresión con Cadena detectada: {valor}")
-            nodo_cadena = Nodo('Cadena', valor=valor)
-            return nodo_cadena
+            return Nodo('Identificador', valor=valor)
         else:
-            self.registrar_error("Se espera una expresión válida")
             return None
+
